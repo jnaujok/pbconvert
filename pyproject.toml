@@ -3,18 +3,23 @@ name = "pbconvert"
 version = "1.0.0"
 description = "Convert protobuf messages between binary wire format and text format using a .proto schema."
 readme = "README.md"
+license = "Apache-2.0"
+license-files = ["LICENSE"]
 requires-python = ">=3.10,<4.0"
 keywords = ["protobuf", "protocol-buffers", "txtpb", "textproto", "converter"]
 classifiers = [
     "Environment :: Console",
     "Intended Audience :: Developers",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+    "Typing :: Typed",
     "Operating System :: OS Independent",
     "Topic :: Software Development :: Libraries",
     "Topic :: Utilities",
 ]
 dependencies = [
-    "protobuf>=4.21",
-    "grpcio-tools>=1.50",
+    "protobuf>=4.25",
+    "grpcio-tools>=1.62",
 ]
 
 [project.urls]
@@ -30,6 +35,7 @@ packages = [{ include = "pbconvert", from = "src" }]
 pytest = ">=8.0"
 pytest-cov = ">=5.0"
 ruff = ">=0.6"
+pyright = ">=1.1.400"
 
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]
@@ -47,6 +53,13 @@ omit = ["*/pbconvert/__main__.py"]  # exercised via subprocess in tests
 [tool.coverage.report]
 show_missing = true
 skip_covered = false
+
+[tool.pyright]
+include = ["src", "tests"]
+pythonVersion = "3.10"
+typeCheckingMode = "standard"
+venvPath = "."
+venv = ".venv"
 
 [tool.ruff]
 line-length = 100

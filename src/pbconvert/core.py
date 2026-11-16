@@ -14,7 +14,8 @@ from pathlib import Path
 from typing import TextIO
 
 from google.protobuf import descriptor_pb2, descriptor_pool, message_factory, text_format
-from google.protobuf.message import DecodeError
+from google.protobuf.message import DecodeError, Message
+from google.protobuf.unknown_fields import UnknownFieldSet
 from grpc_tools import protoc
 
 TEXT_SUFFIXES = frozenset({".txtpb", ".textproto", ".pbtxt", ".txt", ".prototxt"})
@@ -62,14 +63,13 @@ def load_proto(proto_file: str | Path, includes: Iterable[str | Path] = ()):
     return pool, pool.FindFileByName(names[-1]), names
 
 
-def message_class(pool, desc):
-    """Build a concrete message class for ``desc`` across protobuf versions."""
-    if hasattr(message_factory, "GetMessageClass"):  # protobuf >= 4.22
-        return message_factory.GetMessageClass(desc)
-    factory = message_factory.MessageFactory(pool)  # pragma: no cover - old protobuf
-    if hasattr(factory, "GetPrototype"):  # pragma: no cover
-        return factory.GetPrototype(desc)
-    return factory.GetMessages([desc.file.name])[desc.full_name]  # pragma: no cover
+def message_class(pool, desc) -> type[Message]:
+    """Build a concrete message class for ``desc``.
+
+    ``pool`` is accepted for API compatibility; the class is built from the
+    descriptor, which already belongs to its pool.
+    """
+    return message_factory.GetMessageClass(desc)
 
 
 def _walk_messages(descs) -> Iterator:
@@ -140,18 +140,9 @@ def parse_text(cls, data: bytes):
     return msg
 
 
-def has_unknown_fields(msg) -> bool:
+def has_unknown_fields(msg: Message) -> bool:
     """True if ``msg`` (top level) carries fields its schema doesn't define."""
-    try:  # protobuf >= 4.21; the only option on the upb backend
-        from google.protobuf.unknown_fields import UnknownFieldSet
-
-        return len(UnknownFieldSet(msg)) > 0
-    except ImportError:  # pragma: no cover - old protobuf
-        pass
-    try:  # pragma: no cover - old protobuf
-        return len(msg.UnknownFields()) > 0
-    except Exception:  # pragma: no cover
-        return False
+    return len(UnknownFieldSet(msg)) > 0
 
 
 def parse_binary(cls, data: bytes, warn: TextIO | bool | None = True):
@@ -167,13 +158,13 @@ def parse_binary(cls, data: bytes, warn: TextIO | bool | None = True):
         msg.ParseFromString(data)
     except DecodeError as e:
         raise ConversionError(f"Not valid protobuf binary for this message: {e}") from None
-    if warn is True:
-        warn = sys.stderr  # resolved per call so redirection is honoured
-    if warn and has_unknown_fields(msg):
+    # sys.stderr is resolved per call so redirection is honoured.
+    stream = sys.stderr if warn is True else (warn or None)
+    if stream is not None and has_unknown_fields(msg):
         print(
             "warning: input has fields not in the .proto (wrong --message, or "
             "outdated .proto?); they are dropped from the text output",
-            file=warn,
+            file=stream,
         )
     return msg
 

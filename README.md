@@ -1,6 +1,7 @@
 # pbconvert
 
 [![CI](https://github.com/jnaujok/pbconvert/actions/workflows/ci.yml/badge.svg)](https://github.com/jnaujok/pbconvert/actions/workflows/ci.yml)
+[![License: Apache 2.0](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)
 
 Convert a [Protocol Buffers](https://protobuf.dev/) message between **binary wire
 format** (`.pb`, `.bin`, `.binpb`) and **protobuf text format** (`.txtpb`,
@@ -61,6 +62,7 @@ text -> binary: wrote order.pb
   - [Building](#building)
   - [Continuous integration](#continuous-integration)
 - [Troubleshooting](#troubleshooting)
+- [License](#license)
 
 ---
 
@@ -74,8 +76,9 @@ that message is used automatically. Otherwise pass `-m/--message`.
 
 ## Installation
 
-Requires **Python 3.10+**. Dependencies (`protobuf`, `grpcio-tools`) are
-installed automatically.
+Requires **Python 3.10+**. Dependencies are installed automatically:
+`protobuf` 4.25 or newer and `grpcio-tools` 1.62 or newer. Both the oldest
+supported versions and the latest ones are tested in CI.
 
 ### With pipx (recommended for the command-line tool)
 
@@ -253,10 +256,10 @@ import pbconvert
 src, dst, payload = pbconvert.convert(
     "orders.proto",
     Path("order.pb").read_bytes(),
-    message="Order",          # same lookup rules as -m
-    includes=["third_party"], # extra -I paths
-    src="binary",             # or None to detect (uses `path` suffix if given)
-    dst="text",               # or None for "the opposite"
+    message="Order",  # same lookup rules as -m
+    includes=["third_party"],  # extra -I paths
+    src="binary",  # or None to detect (uses `path` suffix if given)
+    dst="text",  # or None for "the opposite"
 )
 print(payload.decode())
 
@@ -266,8 +269,8 @@ desc = pbconvert.pick_message(pool, file_desc, "Order.Note", file_names)
 Note = pbconvert.message_class(pool, desc)
 
 msg = pbconvert.parse_text(Note, b'text: "hi"')
-data = pbconvert.serialize(msg, "binary")             # deterministic bytes
-again = pbconvert.parse_binary(Note, data, warn=None) # warn=None silences warnings
+data = pbconvert.serialize(msg, "binary")  # deterministic bytes
+again = pbconvert.parse_binary(Note, data, warn=None)  # warn=None silences warnings
 ```
 
 | Function | Purpose |
@@ -330,6 +333,7 @@ overwrite protection, stdin/stdout, exit codes, `python -m pbconvert`).
 ```bash
 poetry run ruff check .          # lint
 poetry run ruff format .         # format (CI runs --check)
+poetry run pyright               # type check (the same engine as VS Code's Pylance)
 ```
 
 ### Building
@@ -344,10 +348,14 @@ The wheel installs a `pbconvert` console script (`pbconvert.cli:main`).
 
 `.github/workflows/ci.yml` runs on pushes, pull requests and manual dispatch:
 
-1. **Lint**: `poetry check --lock`, `ruff check`, `ruff format --check`.
+1. **Lint**: `poetry check --lock`, `ruff check`, `ruff format --check`,
+   `pyright`.
 2. **Test**: pytest with coverage (must be at least 95%) on Python 3.10–3.14
    on Ubuntu, plus Python 3.13 on macOS and Windows.
-3. **Build**: runs after lint and tests pass. It builds the sdist and wheel,
+3. **Test (minimum dependencies)**: installs the oldest supported versions
+   (Python 3.10, protobuf 4.25, grpcio-tools 1.62) with plain pip and runs
+   the suite, so the version floors in `pyproject.toml` stay honest.
+4. **Build**: runs after lint and both test jobs pass. It builds the sdist and wheel,
    installs the wheel into a clean virtualenv, does a text → binary → text
    round trip with the installed `pbconvert` script, and uploads `dist/` as a
    workflow artifact.
@@ -382,3 +390,14 @@ directory that contains the import root with `-I`.
 **`error: output would overwrite the input; use -o`**
 Your `--to` matches the input's format, so the default output name is the
 input itself. Choose an output name with `-o`.
+
+**Pylance or Pyright reports `Import "google.protobuf" could not be resolved`**
+VS Code is using a different interpreter from the one you installed
+pbconvert into. Run `poetry install`, then choose **Python: Select
+Interpreter** and pick `.venv/bin/python` (`.venv\Scripts\python.exe` on
+Windows). The repository's `poetry.toml` makes Poetry create that `.venv` in
+the project, and `pyproject.toml` points Pyright at it.
+
+## License
+
+Licensed under the [Apache License, Version 2.0](LICENSE).

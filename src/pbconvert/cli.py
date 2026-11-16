@@ -57,15 +57,14 @@ def build_parser() -> argparse.ArgumentParser:
 
 def main(argv: list[str] | None = None) -> int:
     a = build_parser().parse_args(argv)
-    from_stdin = a.input == "-"
-    in_path = None if from_stdin else Path(a.input)
+    in_path: Path | None = None if a.input == "-" else Path(a.input)
 
-    if from_stdin and a.output in (None, ""):
+    if in_path is None and not a.output:
         print("error: reading from stdin requires -o/--output", file=sys.stderr)
         return 1
 
     try:
-        if from_stdin:
+        if in_path is None:
             data = sys.stdin.buffer.read()
         else:
             if not in_path.is_file():
@@ -83,7 +82,11 @@ def main(argv: list[str] | None = None) -> int:
         sys.stdout.buffer.flush()
         return 0
 
-    out = Path(a.output) if a.output else in_path.with_suffix(".txtpb" if dst == "text" else ".pb")
+    if a.output:
+        out = Path(a.output)
+    else:
+        assert in_path is not None  # stdin input without -o was rejected above
+        out = in_path.with_suffix(".txtpb" if dst == "text" else ".pb")
     if in_path is not None and out.resolve() == in_path.resolve():
         print("error: output would overwrite the input; use -o", file=sys.stderr)
         return 1

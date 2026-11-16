@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import Any
+
 import pytest
 
 from pbconvert import ConversionError, all_messages, load_proto, message_class, pick_message
@@ -198,12 +200,12 @@ class TestPickMessage:
 class TestMessageClass:
     def test_builds_instantiable_class(self, orders_schema):
         pool, fd, names = orders_schema
-        cls = message_class(pool, pick_message(pool, fd, "Order", names))
+        cls: Any = message_class(pool, pick_message(pool, fd, "Order", names))  # dynamic fields
         msg = cls(id=5)
         assert msg.id == 5
         assert msg.DESCRIPTOR.full_name == "acme.v1.Order"
 
     def test_nested_class(self, orders_schema):
         pool, fd, names = orders_schema
-        cls = message_class(pool, pick_message(pool, fd, "Order.Note", names))
+        cls: Any = message_class(pool, pick_message(pool, fd, "Order.Note", names))
         assert cls(text="x").text == "x"
