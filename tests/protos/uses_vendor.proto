@@ -1,0 +1,9 @@
+syntax = "proto3";
+
+package uses;
+
+import "vendor/ext.proto";
+
+message Wrapper {
+  vendor.Ext ext = 1;
+}

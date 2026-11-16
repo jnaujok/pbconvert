@@ -1,0 +1,14 @@
+syntax = "proto3";
+
+package amb;
+
+message A {
+  string a = 1;
+}
+
+message B {
+  message A {
+    string b = 1;
+  }
+  A inner = 1;
+}

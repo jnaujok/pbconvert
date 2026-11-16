@@ -1,0 +1,9 @@
+syntax = "proto3";
+
+message Thing {
+  string name = 1;
+}
+
+message Other {
+  int32 n = 1;
+}

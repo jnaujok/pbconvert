@@ -1,0 +1,103 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master, "claude/**"]
+    tags: ["v*"]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  PYTHONUTF8: "1"
+  POETRY_VIRTUALENVS_IN_PROJECT: "true"
+
+jobs:
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Install Poetry
+        run: pipx install poetry
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+          cache: poetry
+      - name: Check pyproject.toml and lock file
+        run: poetry check --lock
+      - name: Install dependencies
+        run: poetry install --no-interaction
+      - name: Ruff lint
+        run: poetry run ruff check --output-format=github .
+      - name: Ruff format
+        run: poetry run ruff format --check .
+
+  test:
+    name: Test (py${{ matrix.python-version }}, ${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest]
+        python-version: ["3.10", "3.11", "3.12", "3.13", "3.14"]
+        include:
+          - os: macos-latest
+            python-version: "3.13"
+          - os: windows-latest
+            python-version: "3.13"
+    steps:
+      - uses: actions/checkout@v5
+      - name: Install Poetry
+        run: pipx install poetry
+      - uses: actions/setup-python@v6
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: poetry
+      - name: Install dependencies
+        run: |
+          poetry env use python
+          poetry install --no-interaction
+      - name: Run tests
+        run: poetry run pytest --cov --cov-report=term-missing --cov-report=xml --cov-fail-under=95
+      - name: Upload coverage report
+        if: matrix.os == 'ubuntu-latest' && matrix.python-version == '3.13'
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-xml
+          path: coverage.xml
+
+  build:
+    name: Build
+    needs: [lint, test]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Install Poetry
+        run: pipx install poetry
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+      - name: Build sdist and wheel
+        run: poetry build
+      - name: Smoke-test the wheel in a clean virtualenv
+        run: |
+          python -m venv /tmp/smoke
+          /tmp/smoke/bin/pip install dist/*.whl
+          /tmp/smoke/bin/pbconvert --version
+          printf 'id: 7\nitems { sku: "abc" }\n' > /tmp/order.txtpb
+          /tmp/smoke/bin/pbconvert tests/protos/orders.proto /tmp/order.txtpb -m Order -o /tmp/order.pb
+          /tmp/smoke/bin/pbconvert tests/protos/orders.proto /tmp/order.pb -m acme.v1.Order -o - | tee /tmp/round.txtpb
+          grep -q 'sku: "abc"' /tmp/round.txtpb
+          /tmp/smoke/bin/python -m pbconvert --help > /dev/null
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist/
+          if-no-files-found: error

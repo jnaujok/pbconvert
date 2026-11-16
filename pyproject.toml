@@ -1,0 +1,56 @@
+[project]
+name = "pbconvert"
+version = "1.0.0"
+description = "Convert protobuf messages between binary wire format and text format using a .proto schema."
+readme = "README.md"
+requires-python = ">=3.10,<4.0"
+keywords = ["protobuf", "protocol-buffers", "txtpb", "textproto", "converter"]
+classifiers = [
+    "Environment :: Console",
+    "Intended Audience :: Developers",
+    "Operating System :: OS Independent",
+    "Topic :: Software Development :: Libraries",
+    "Topic :: Utilities",
+]
+dependencies = [
+    "protobuf>=4.21",
+    "grpcio-tools>=1.50",
+]
+
+[project.urls]
+Repository = "https://github.com/jnaujok/pbconvert"
+
+[project.scripts]
+pbconvert = "pbconvert.cli:main"
+
+[tool.poetry]
+packages = [{ include = "pbconvert", from = "src" }]
+
+[tool.poetry.group.dev.dependencies]
+pytest = ">=8.0"
+pytest-cov = ">=5.0"
+ruff = ">=0.6"
+
+[build-system]
+requires = ["poetry-core>=2.0.0,<3.0.0"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra --strict-markers"
+
+[tool.coverage.run]
+source = ["pbconvert"]
+branch = true
+omit = ["*/pbconvert/__main__.py"]  # exercised via subprocess in tests
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = false
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP"]
